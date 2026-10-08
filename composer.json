@@ -1,5 +1,12 @@
 {
+  "autoload": {
+    "psr-4": {
+      "App\\": ""
+    }
+  },
     "require": {
-        "illuminate/database": "^13.35"
+        "illuminate/database": "^13.35",
+    "vlucas/phpdotenv": "^5.7",
+    "predis/predis": "^3.6"
     }
 }
