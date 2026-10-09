@@ -17,7 +17,11 @@ foreach ($migrations as $migrationPath) {
     $migration = require $migrationPath;
     try {
         $migration->up();
-    } catch (PDOException) {
-        echo 'Migration ' . basename($migrationPath, '.php') . ' has been already executed.' . PHP_EOL;
+    } catch (PDOException $e) {
+        if ($e->getCode() === '42S01') {
+            echo 'Migration ' . basename($migrationPath, '.php') . ' has been already executed.' . PHP_EOL;
+        } else {
+            echo 'Error:' . $e->getMessage() . PHP_EOL;
+        }
     }
 }
