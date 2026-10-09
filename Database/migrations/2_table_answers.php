@@ -11,9 +11,10 @@ return new class extends Migration {
     public function up(): void
     {
         Capsule::schema()->create('answers', function (Blueprint $table) {
-            $table->foreignId('question_id');
-            $table->text('answer');
-            $table->integer('number_characters');
+            $table->id();
+            $table->string('answer')->unique();
+            $table->integer('length');
+            $table->timestamps();
         });
     }
 };
