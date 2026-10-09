@@ -7,6 +7,12 @@
     "require": {
         "illuminate/database": "^13.35",
     "vlucas/phpdotenv": "^5.7",
-    "predis/predis": "^3.6"
+    "predis/predis": "^3.6",
+    "imangazaliev/didom": "^2.0",
+      "ext-pdo": "*",
+    "guzzlehttp/guzzle": "^8.2",
+      "ext-http": "*",
+    "symfony/dom-crawler": "^8.1",
+    "symfony/css-selector": "^8.1"
     }
 }
