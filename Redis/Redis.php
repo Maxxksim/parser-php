@@ -5,14 +5,15 @@ declare(strict_types=1);
 namespace App\Redis;
 
 use Predis\Client as PredisClient;
+use Predis\Connection\ConnectionInterface;
 
 class Redis
 {
-    private PredisClient $connection;
+    private PredisClient $client;
 
     public function __construct()
     {
-        $this->connection = new PredisClient([
+        $this->client = new PredisClient([
             'scheme' => 'tcp',
             'host' => '127.0.0.1',
             'port' => 6379,
@@ -23,6 +24,6 @@ class Redis
 
     public function connection(): PredisClient
     {
-        return $this->connection;
+        return $this->client;
     }
 }
