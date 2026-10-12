@@ -23,7 +23,7 @@ class Request
         try {
             $response = $this->client->request($method, $url, [
                 'headers' => [
-                    'proxy' => $withProxy ? $this->getProxy() : '',
+                    //'proxy' => $withProxy ? $this->getProxy() : '',
                     'User-Agent' => 'Mozilla/5.0 (Linux; Android 16; Pixel 10) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/155.0.0.0 Mobile Safari/537.36'
                 ]
             ]);
