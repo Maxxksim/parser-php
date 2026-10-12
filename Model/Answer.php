@@ -6,7 +6,7 @@ use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 
-#[Fillable('answer', 'number_characters')]
+#[Fillable('answer', 'length')]
 class Answer extends Model
 {
     public function questions(): BelongsToMany
