@@ -24,7 +24,7 @@ class Logger
     {
         $this->logger = new MLogger('parser');
         $handler = new StreamHandler($this->getLogMode(), Level::Debug);
-        $handler->setFormatter(new LineFormatter);
+        $handler->setFormatter(new LineFormatter(null, null, false, true));
         $this->logger->pushHandler($handler);
     }
 
