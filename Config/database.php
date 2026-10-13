@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 return [
     'redis' => [
         'scheme' => $_ENV['REDIS_SCHEME'],
@@ -15,6 +17,6 @@ return [
         'username' => $_ENV['DB_USERNAME'],
         'password' => $_ENV['DB_PASSWORD'],
         'charset' => 'utf8mb4',
-        'collation' => 'utf8mb4_bin'
-    ]
+        'collation' => 'utf8mb4_bin',
+    ],
 ];

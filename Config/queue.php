@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 return [
-  'number_processes' => $_ENV['NUMBER_PROCESSES'],
+    'number_processes' => $_ENV['NUMBER_PROCESSES'],
 ];

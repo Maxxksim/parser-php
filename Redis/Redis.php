@@ -6,7 +6,6 @@ namespace App\Redis;
 
 use App\Config\Config;
 use Predis\Client as PredisClient;
-use Predis\Connection\ConnectionInterface;
 
 class Redis
 {

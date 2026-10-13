@@ -1,8 +1,9 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Logger;
 
-use AllowDynamicProperties;
 use App\Config\Config;
 use Monolog\Formatter\LineFormatter;
 use Monolog\Handler\StreamHandler;
@@ -13,7 +14,7 @@ class Logger
 {
     private const array LOG_MODE_MAPPING = [
         'debug' => 'php://stdout',
-        'file' => __DIR__ . '/../logs.log'
+        'file' => __DIR__.'/../logs.log',
     ];
 
     private MLogger $logger;
@@ -22,7 +23,7 @@ class Logger
     {
         $this->logger = new MLogger('parser');
         $handler = new StreamHandler($this->getLogMode(), Level::Warning);
-        $handler->setFormatter(new LineFormatter());
+        $handler->setFormatter(new LineFormatter);
         $this->logger->pushHandler($handler);
 
     }
@@ -36,5 +37,4 @@ class Logger
     {
         $this->logger->log($level, $message, $context);
     }
-
 }

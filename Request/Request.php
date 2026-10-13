@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Request;
 
 use App\Config\Config;
@@ -10,12 +12,14 @@ use GuzzleHttp\Exception\GuzzleException;
 class Request
 {
     private Client $client;
+
     private array $proxies;
+
     private static int $indexNextProxy = 0;
 
     public function __construct(private Config $config, private Logger $logger)
     {
-        $this->client = new Client();
+        $this->client = new Client;
         $this->proxies = $this->config->config('request.proxies');
     }
 
@@ -26,7 +30,7 @@ class Request
             $response = $this->client->request($method, $url, [
                 'headers' => [
                     'User-Agent' => 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/155.0.0.0 Safari/537.36',
-                    'Accept' => '*/*'
+                    'Accept' => '*/*',
                 ],
                 'proxy' => $this->getProxy(),
                 'timeout' => 30,
@@ -40,7 +44,7 @@ class Request
 
     private function getProxy(): string
     {
-        if ((bool)$this->config->config('request.with_proxy') === false) {
+        if ((bool) $this->config->config('request.with_proxy') === false) {
             return '';
         }
 
@@ -51,16 +55,15 @@ class Request
         $proxy = $this->proxies[static::$indexNextProxy];
         static::$indexNextProxy += 1;
 
-
         return $this->makeProxyUrl($proxy);
     }
 
     private function makeProxyUrl(string $proxy): string
     {
-        return 'http://' .
-            rawurlencode($this->config->config('request.proxy.username')) .
-            ':' .
-            rawurlencode($this->config->config('request.proxy.password')) .
-            '@' . $proxy;
+        return 'http://'.
+            rawurlencode($this->config->config('request.proxy.username')).
+            ':'.
+            rawurlencode($this->config->config('request.proxy.password')).
+            '@'.$proxy;
     }
 }

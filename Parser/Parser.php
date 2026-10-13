@@ -1,9 +1,10 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Parser;
 
 use App\Logger\Logger;
-use App\Model\Answer;
 use App\Model\Question;
 use App\Redis\Redis;
 use App\Request\Request;
@@ -14,6 +15,7 @@ use Illuminate\Database\Capsule\Manager as Capsule;
 class Parser
 {
     private const string MAIN_PAGE_QUESTIONS_URL = 'https://www.kreuzwort-raetsel.net/uebersicht.html';
+
     private const string BASE_URL = 'https://www.kreuzwort-raetsel.net/';
 
     public function __construct(private Request $request, private Redis $redisClient, private Logger $logger)
@@ -32,7 +34,7 @@ class Parser
             $pageWithLinksToQuestionsPaginatedBySection = $this->getConvertedPage($linkToSections->getUri());
             $linksListToQuestionsPaginatedBySection = $pageWithLinksToQuestionsPaginatedBySection->filter('ul.dnrg li a')->links();
 
-            $this->redisClient->connection()->lpush('queue', array_map(fn($linkToSection) => $linkToSection->getUri(), $linksListToQuestionsPaginatedBySection));
+            $this->redisClient->connection()->lpush('queue', array_map(fn ($linkToSection) => $linkToSection->getUri(), $linksListToQuestionsPaginatedBySection));
         }
         $this->logger->log('info', 'PARSER MESSAGE: end preparing data for main parsing.');
     }
@@ -78,8 +80,3 @@ class Parser
         }
     }
 }
-
-
-
-
-

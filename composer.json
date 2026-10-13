@@ -8,7 +8,6 @@
         "illuminate/database": "^13.35",
     "vlucas/phpdotenv": "^5.7",
     "predis/predis": "^3.6",
-    "imangazaliev/didom": "^2.0",
       "ext-pdo": "*",
     "guzzlehttp/guzzle": "^8.2",
       "ext-http": "*",
@@ -17,5 +16,8 @@
       "ext-redis": "*",
       "ext-pcntl": "*",
     "monolog/monolog": "^3.12"
-    }
+    },
+  "require-dev": {
+    "laravel/pint": "^1.32"
+  }
 }

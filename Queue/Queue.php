@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Queue;
 
 use App\Config\Config;
@@ -32,24 +34,24 @@ class Queue
                 $newRedisClient = $this->redisClient->getInstance();
                 $newDb = new Db($this->config);
 
-                $this->logger->log('info', 'QUEUE MESSAGE (PROCESS): process with PID: ' . getmypid() . ' has been started.');
+                $this->logger->log('info', 'QUEUE MESSAGE (PROCESS): process with PID: '.getmypid().' has been started.');
 
                 while ($newRedisClient->llen('queue') > 0 || $newRedisClient->llen('queue:processing') > 0) {
 
-                    if (!($link = $newRedisClient->blmove('queue', 'queue:processing', 'RIGHT', 'LEFT', 30))) {
+                    if (! ($link = $newRedisClient->blmove('queue', 'queue:processing', 'RIGHT', 'LEFT', 30))) {
                         continue;
                     }
 
                     try {
-                        if (!$newRedisClient->sismember('queue:parsed', $link)) {
-                            $this->logger->log('info', 'QUEUE MESSAGE (PARSING): process ' . getmypid() . ' started parsing link: ' . $link);
+                        if (! $newRedisClient->sismember('queue:parsed', $link)) {
+                            $this->logger->log('info', 'QUEUE MESSAGE (PARSING): process '.getmypid().' started parsing link: '.$link);
                             $this->handler->parse($link);
                             $newRedisClient->sadd('queue:parsed', [$link]);
-                            $this->logger->log('info', 'QUEUE MESSAGE (PARSING): process ' . getmypid() . ' ended parsing link: ' . $link);
+                            $this->logger->log('info', 'QUEUE MESSAGE (PARSING): process '.getmypid().' ended parsing link: '.$link);
                         }
                     } catch (\Throwable $e) {
                         $newRedisClient->lpush('queue', [$link]);
-                        $this->logger->log('debug', 'QUEUE MESSAGE (PARSING): error: ' . $e->getMessage());
+                        $this->logger->log('debug', 'QUEUE MESSAGE (PARSING): error: '.$e->getMessage());
                     } finally {
                         $newRedisClient->lrem('queue:processing', 1, $link);
                     }
@@ -60,7 +62,7 @@ class Queue
         }
 
         while (($pid = pcntl_wait($status)) > 0) {
-            $this->logger->log('info', 'QUEUE MESSAGE (PROCESS): process with PID ' . $pid . 'has done.');
+            $this->logger->log('info', 'QUEUE MESSAGE (PROCESS): process with PID '.$pid.'has done.');
         }
     }
 
