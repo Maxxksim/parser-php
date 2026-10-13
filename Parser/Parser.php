@@ -7,6 +7,7 @@ use App\Model\Question;
 use App\Redis\Redis;
 use App\Request\Request;
 use Symfony\Component\DomCrawler\Crawler;
+use Illuminate\Database\Capsule\Manager as Capsule;
 
 
 class Parser
@@ -47,29 +48,33 @@ class Parser
         $linksToQuestionsSortedByAlphabet = $pageWithQuestionsSortedByAlphabet->filter('tbody tr td.Question a')->links();
 
         foreach ($linksToQuestionsSortedByAlphabet as $linkToQuestionWithAnswers) {
-            $answersIdsList = [];
+            $answersWithLengthList = [];
 
             $pageWithAnswers = $this->getConvertedPage($linkToQuestionWithAnswers->getUri());
 
             $question = $linkToQuestionWithAnswers->getNode()->nodeValue;
 
-            $listWithAnswers = $pageWithAnswers->filter('tbody tr td.Answer a')->each(function (Crawler $node, $i): string {
+            $parsedListWithAnswers = $pageWithAnswers->filter('tbody tr td.Answer a')->each(function (Crawler $node): string {
                 return $node->text();
             });
-            $listWithAnswersLengths = $pageWithAnswers->filter('tbody tr td.Length')->each(function (Crawler $node, $i): string {
+            $parsedListWithAnswersLengths = $pageWithAnswers->filter('tbody tr td.Length')->each(function (Crawler $node): string {
                 return $node->text();
             });
 
             $question = Question::firstOrCreate(['question' => $question]);
 
             echo " ----- Question: $question -----" . PHP_EOL;
-            foreach ($listWithAnswers as $key => $answer) {
+            foreach ($parsedListWithAnswers as $key => $answer) {
 
-                $answersIdsList[] = Answer::firstOrCreate(['answer' => $answer, 'length' => $listWithAnswersLengths[$key]])->id;
+                $answersWithLengthList[] = ['answer' => $answer, 'length' => $parsedListWithAnswersLengths[$key]];
 
-                echo " -- Answer: $answer Length: $listWithAnswersLengths[$key]" . PHP_EOL;
+                echo " -- Answer: $answer Length: $parsedListWithAnswersLengths[$key]" . PHP_EOL;
             }
             echo PHP_EOL;
+
+            Capsule::table('answers')->insertOrIgnore($answersWithLengthList);
+            $answersList = array_column($answersWithLengthList, 'answer');
+            $answersIdsList = Capsule::table('answers')->whereIn('answer', $answersList)->pluck('id');
 
             $question->answers()->syncWithoutDetaching($answersIdsList);
 
