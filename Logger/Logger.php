@@ -43,4 +43,9 @@ class Logger
     {
         $this->logger->log($level, $message, $context);
     }
+
+    public function getMonolog(): MLogger
+    {
+        return $this->logger;
+    }
 }

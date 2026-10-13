@@ -8,6 +8,7 @@ use App\Parser\Parser;
 use App\Queue\Queue;
 use App\Redis\Redis;
 use App\Request\Request;
+use Monolog\ErrorHandler;
 
 require_once __DIR__.'/vendor/autoload.php';
 
@@ -16,6 +17,9 @@ $dotenv->load();
 
 $config = new Config;
 $logger = new Logger($config);
+
+ErrorHandler::register($logger->getMonolog());
+
 $request = new Request($config, $logger);
 $redis = new Redis($config);
 $parser = new Parser($request, $redis, $logger);
