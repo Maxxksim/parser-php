@@ -23,7 +23,7 @@ class Request
         $this->proxies = $this->config->config('request.proxies');
     }
 
-    public function makeRequest(string $method, string $url): ?string
+    public function makeRequest(string $method, string $url): string
     {
 
         try {
@@ -36,15 +36,15 @@ class Request
                 'timeout' => 30,
             ]);
         } catch (GuzzleException $e) {
-            $this->logger->log('debug', "REQUEST MESSAGE: Error: {$e->getMessage()}");
+            $this->logger->log('error', "REQUEST MESSAGE: Error: {$e->getMessage()}");
         }
 
-        return $response->getBody();
+        return $response->getBody()->getContents();
     }
 
     private function getProxy(): string
     {
-        if ((bool) $this->config->config('request.with_proxy') === false) {
+        if ((bool)$this->config->config('request.with_proxy') === false) {
             return '';
         }
 
@@ -60,10 +60,10 @@ class Request
 
     private function makeProxyUrl(string $proxy): string
     {
-        return 'http://'.
-            rawurlencode($this->config->config('request.proxy.username')).
-            ':'.
-            rawurlencode($this->config->config('request.proxy.password')).
-            '@'.$proxy;
+        return 'http://' .
+            rawurlencode($this->config->config('request.proxy.username')) .
+            ':' .
+            rawurlencode($this->config->config('request.proxy.password')) .
+            '@' . $proxy;
     }
 }
