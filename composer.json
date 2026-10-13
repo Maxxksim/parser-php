@@ -10,7 +10,6 @@
     "predis/predis": "^3.6",
       "ext-pdo": "*",
     "guzzlehttp/guzzle": "^8.2",
-      "ext-http": "*",
     "symfony/dom-crawler": "^8.1",
     "symfony/css-selector": "^8.1",
       "ext-redis": "*",

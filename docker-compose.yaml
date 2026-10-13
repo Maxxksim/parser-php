@@ -41,7 +41,10 @@ services:
       context: .
       dockerfile: Dockerfile
     working_dir: /var/www/html/parser
-    entrypoint: ['php', 'migrate.php']
+    entrypoint: ['php', './Database/migrate.php']
+    volumes:
+      - ./:/var/www/html/parser
+      - vendor:/var/www/html/parser/vendor
 
   start-parser:
     build:
@@ -49,6 +52,9 @@ services:
       dockerfile: Dockerfile
     working_dir: /var/www/html/parser
     entrypoint: [ 'php', 'startParser.php' ]
+    volumes:
+      - ./:/var/www/html/parser
+      - vendor:/var/www/html/parser/vendor
 
 volumes:
   db_data:
