@@ -26,7 +26,7 @@ foreach ($migrations as $migrationPath) {
         if ($e->getCode() === '42S01') {
             $logger->log('info', 'MIGRATION MESSAGE: Migration '.basename($migrationPath, '.php').' has been already executed.');
         } else {
-            $logger->log('debug', 'MIGRATION MESSAGE Error:'.$e->getMessage());
+            $logger->log('error', 'MIGRATION MESSAGE Error:'.$e->getMessage());
         }
     }
 }
