@@ -23,6 +23,9 @@ class Request
         $withProxy = (bool)$this->config->config('request.with_proxy');
         try {
             $response = $this->client->request($method, $url, [
+                'headers' => [
+                    'User-Agent' => 'Mozilla/5.0 (Linux; Android 16; Pixel 10) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/155.0.0.0 Mobile Safari/537.36'
+                ],
                 'proxy' => $withProxy ? $this->getProxy() : '',
                 'timeout' => 30
             ]);
