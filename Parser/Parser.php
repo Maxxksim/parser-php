@@ -34,7 +34,7 @@ class Parser
             $pageWithLinksToQuestionsPaginatedBySection = $this->getConvertedPage($linkToSections->getUri());
             $linksListToQuestionsPaginatedBySection = $pageWithLinksToQuestionsPaginatedBySection->filter('ul.dnrg li a')->links();
 
-            $this->redisClient->connection()->lpush('queue', array_map(fn ($linkToSection) => $linkToSection->getUri(), $linksListToQuestionsPaginatedBySection));
+            $this->redisClient->connection()->lpush('queue', array_map(fn($linkToSection) => $linkToSection->getUri(), $linksListToQuestionsPaginatedBySection));
         }
         $this->logger->log('info', 'PARSER MESSAGE: end preparing data for main parsing.');
     }
@@ -46,13 +46,15 @@ class Parser
         return new Crawler($page, self::BASE_URL);
     }
 
-    public function parse(string $linkToSection): void
+    public function parse(string $linkToSection): string|false
     {
         $pageWithQuestionsSortedByAlphabet = $this->getConvertedPage($linkToSection);
 
         $linksToQuestionsSortedByAlphabet = $pageWithQuestionsSortedByAlphabet->filter('tbody tr td.Question a')->links();
 
+        $questionsWithAnswers = [];
         foreach ($linksToQuestionsSortedByAlphabet as $linkToQuestionWithAnswers) {
+
             $answersWithLengthList = [];
 
             $pageWithAnswers = $this->getConvertedPage($linkToQuestionWithAnswers->getUri());
@@ -66,17 +68,19 @@ class Parser
                 return $node->text();
             });
 
-            $question = Question::firstOrCreate(['question' => $question]);
 
             foreach ($parsedListWithAnswers as $key => $answer) {
-                $answersWithLengthList[] = ['answer' => $answer, 'length' => $parsedListWithAnswersLengths[$key]];
+                $answersWithLengthList[] = ['answer' => $answer, 'length' => (int)$parsedListWithAnswersLengths[$key]];
             }
 
-            Capsule::table('answers')->insertOrIgnore($answersWithLengthList);
-            $answersList = array_column($answersWithLengthList, 'answer');
-            $answersIdsList = Capsule::table('answers')->whereIn('answer', $answersList)->pluck('id');
-
-            $question->answers()->syncWithoutDetaching($answersIdsList);
+            $questionsWithAnswers[$linkToSection][$question] = $answersWithLengthList;
         }
+
+        return $this->convertToJson($questionsWithAnswers);
+    }
+
+    public function convertToJson(array $data): string|false
+    {
+        return json_encode($data);
     }
 }

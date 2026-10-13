@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Queue;
 
 use App\Config\Config;
+use App\Controller\ParsedDataController;
 use App\Database\Db;
 use App\Logger\Logger;
 use App\Parser\Parser;
@@ -14,9 +15,12 @@ class Queue
 {
     private int $countProcesses;
 
+    private const int DEFAULT_COUNT_PROCESSES = 2;
+    private const int SAVING_PROCESS = 1;
+
     public function __construct(private Redis $redisClient, private Config $config, private Parser $handler, private Logger $logger)
     {
-        $this->countProcesses = (int)$this->config->config('queue.number_processes') ?? 1;
+        $this->countProcesses = (int)$this->config->config('queue.number_processes') + self::SAVING_PROCESS ?? self::DEFAULT_COUNT_PROCESSES;
     }
 
     public function startQueue(): void
@@ -25,6 +29,7 @@ class Queue
 
         $this->redisClient->connection()->disconnect();
 
+        $indexLastProcess = $this->countProcesses - self::SAVING_PROCESS;
         for ($i = 0; $i < $this->countProcesses; $i++) {
 
             $pid = pcntl_fork();
@@ -36,24 +41,46 @@ class Queue
 
                 $this->logger->log('info', 'QUEUE MESSAGE (PROCESS): process with PID: ' . getmypid() . ' has been started.');
 
-                while ($newRedisClient->llen('queue') > 0 || $newRedisClient->llen('queue:processing') > 0) {
+                if ($indexLastProcess !== $i) {
+                    while ($newRedisClient->llen('queue') > 0 || $newRedisClient->llen('queue:processing') > 0) {
 
-                    if (!($link = $newRedisClient->blmove('queue', 'queue:processing', 'RIGHT', 'LEFT', 30))) {
-                        continue;
-                    }
-
-                    try {
-                        if (!$newRedisClient->sismember('queue:parsed', $link)) {
-                            $this->logger->log('info', 'QUEUE MESSAGE (PARSING): process ' . getmypid() . ' started parsing link: ' . $link);
-                            $this->handler->parse($link);
-                            $newRedisClient->sadd('queue:parsed', [$link]);
-                            $this->logger->log('info', 'QUEUE MESSAGE (PARSING): process ' . getmypid() . ' ended parsing link: ' . $link);
+                        if (!($link = $newRedisClient->blmove('queue', 'queue:processing', 'RIGHT', 'LEFT', 30))) {
+                            continue;
                         }
-                    } catch (\Throwable $e) {
-                        $newRedisClient->lpush('queue', [$link]);
-                        $this->logger->log('error', 'QUEUE MESSAGE (PARSING): error: ' . $e->getMessage());
-                    } finally {
-                        $newRedisClient->lrem('queue:processing', 1, $link);
+
+                        try {
+                            if (!$newRedisClient->sismember('queue:parsed', $link)) {
+                                $this->logger->log('info', 'QUEUE MESSAGE (PARSING): process ' . getmypid() . ' started parsing link: ' . $link);;
+
+                                if (($parsedData = $this->handler->parse($link))) {
+                                    $newRedisClient->lpush('queue:parsed:data', [$parsedData]);
+                                }
+
+                                $newRedisClient->sadd('queue:parsed', [$link]);
+                                $this->logger->log('info', 'QUEUE MESSAGE (PARSING): process ' . getmypid() . ' ended parsing link: ' . $link);
+                            }
+                        } catch (\Throwable $e) {
+                            $newRedisClient->lpush('queue', [$link]);
+                            $this->logger->log('error', 'QUEUE MESSAGE (PARSING): error: ' . $e->getMessage());
+                        }
+                    }
+                } else {
+
+                    $controller = new ParsedDataController();
+
+                    while ($newRedisClient->llen('queue') > 0 || $newRedisClient->llen('queue:processing') > 0 || $newRedisClient->llen('queue:parsed:data') > 0) {
+
+                        if (!($data = $newRedisClient->brpop('queue:parsed:data', 30)[1])) {
+                            continue;
+                        }
+                        try {
+                            $link = $controller->save($data);
+                            $newRedisClient->lrem('queue:processing', 1, $link);
+                        } catch (\Throwable $e) {
+                            $newRedisClient->lpush('queue:parsed:data', [$data]);
+                            $this->logger->log('error', 'QUEUE MESSAGE (SAVING): error: ' . $e->getMessage());
+                        }
+
                     }
                 }
 
@@ -66,7 +93,8 @@ class Queue
         }
     }
 
-    private function moveToMainQueue(): void
+    private
+    function moveToMainQueue(): void
     {
         $this->logger->log('info', 'QUEUE MESSAGE (MOVING LINKS): start');
         $count = $this->redisClient->connection()->llen('queue:processing');
