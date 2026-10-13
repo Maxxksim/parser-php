@@ -70,11 +70,11 @@ class Queue
 
                     while ($newRedisClient->llen('queue') > 0 || $newRedisClient->llen('queue:processing') > 0 || $newRedisClient->llen('queue:parsed:data') > 0) {
 
-                        if (!($data = $newRedisClient->brpop('queue:parsed:data', 30)[1])) {
+                        if (!($data = $newRedisClient->brpop('queue:parsed:data', 30))) {
                             continue;
                         }
                         try {
-                            $link = $controller->save($data);
+                            $link = $controller->save($data[1]);
                             $newRedisClient->lrem('queue:processing', 1, $link);
                         } catch (\Throwable $e) {
                             $newRedisClient->lpush('queue:parsed:data', [$data]);
