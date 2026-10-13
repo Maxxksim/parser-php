@@ -8,6 +8,10 @@ services:
       MYSQL_ROOT_PASSWORD : "${DB_PASSWORD}"
     volumes:
       - db_data:/var/lib/mysql
+    healthcheck:
+      test: [ "CMD", "mysqladmin", "ping", "-p${DB_PASSWORD}" ]
+      retries: 3
+      timeout: 5s
     ports:
       - "3306:3306"
 
@@ -19,7 +23,34 @@ services:
     ports:
       - "6379:6379"
 
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    volumes:
+      - ./:/var/www/html/parser
+      - vendor:/var/www/html/parser/vendor
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_started
+
+  migrate:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    working_dir: /var/www/html/parser
+    entrypoint: ['php', 'migrate.php']
+
+  start-parser:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    working_dir: /var/www/html/parser
+    entrypoint: [ 'php', 'startParser.php' ]
 
 volumes:
   db_data:
   redis_data:
+  vendor:
