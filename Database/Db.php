@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Database;
 
+use App\Config\Config;
 use Illuminate\Database\Capsule\Manager as Capsule;
 use Illuminate\Database\Connection;
 
@@ -11,22 +12,9 @@ class Db
 {
     private Capsule $capsule;
 
-    public function __construct()
+    public function __construct(private Config $config)
     {
-        $this->capsule = new Capsule;
-
-        $this->capsule->addConnection([
-            'driver' => 'mysql',
-            'host' => $_ENV['DB_HOST'],
-            'database' => $_ENV['DB_DATABASE'],
-            'username' => $_ENV['DB_USERNAME'],
-            'password' => $_ENV['DB_PASSWORD'],
-            'charset' => 'utf8mb4',
-            'collation' => 'utf8mb4_unicode_ci',
-        ]);
-
-        $this->capsule->setAsGlobal();
-        $this->capsule->bootEloquent();
+        $this->capsule = $this->getInstance();
     }
 
     public function connection(): Connection
@@ -34,4 +22,23 @@ class Db
         return $this->capsule->getConnection();
     }
 
+    public function getInstance(): Capsule
+    {
+        $capsule = new Capsule;
+
+        $capsule->addConnection([
+            'driver' => $this->config->config('database.mysql.driver'),
+            'host' => $this->config->config('database.mysql.host'),
+            'database' => $this->config->config('database.mysql.database'),
+            'username' => $this->config->config('database.mysql.username'),
+            'password' => $this->config->config('database.mysql.password'),
+            'charset' => $this->config->config('database.mysql.charset'),
+            'collation' => $this->config->config('database.mysql.collation'),
+        ]);
+
+        $capsule->setAsGlobal();
+        $capsule->bootEloquent();
+
+        return $capsule;
+    }
 }

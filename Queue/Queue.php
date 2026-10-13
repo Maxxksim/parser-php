@@ -3,6 +3,7 @@
 namespace App\Queue;
 
 use App\Config\Config;
+use App\Database\Db;
 use App\Parser\Parser;
 use App\Redis\Redis;
 
@@ -18,29 +19,35 @@ class Queue
     public function startQueue(): void
     {
         $this->moveToMainQueue();
+
+        $this->redisClient->connection()->disconnect();
+
         for ($i = 0; $i < $this->countProcesses; $i++) {
 
             $pid = pcntl_fork();
 
             if ($pid === 0) {
 
-                echo "PROCESS WITH PID:" . getmypid() . "are working now..." . PHP_EOL;
+                $newRedisClient = $this->redisClient->getInstance();
+                $newDb = new Db($this->config);
 
-                while ($this->redisClient->connection()->llen('queue') > 0 || $this->redisClient->connection()->llen('queue:processing') > 0) {
+                echo "PROCESS WITH PID:" . getmypid() . " is working now..." . PHP_EOL;
+
+                while ($newRedisClient->llen('queue') > 0 || $newRedisClient->llen('queue:processing') > 0) {
 
                     if (!($link = $this->redisClient->connection()->blmove('queue', 'queue:processing', 'RIGHT', 'LEFT', 30))) {
                         continue;
                     }
 
                     try {
-                        if (!$this->redisClient->connection()->sismember('queue:parsed', $link)) {
+                        if ($newRedisClient->sismember('queue:parsed', $link)) {
                             $this->handler->parse($link);
-                            $this->redisClient->connection()->sadd('queue:parsed', [$link]);
+                            $newRedisClient->sadd('queue:parsed', [$link]);
                         }
                     } catch (\Throwable $e) {
-                        $this->redisClient->connection()->lpush('queue', [$link]);
+                        $newRedisClient->lpush('queue', [$link]);
                     } finally {
-                        $this->redisClient->connection()->lrem('queue:processing', 1, $link);
+                        $newRedisClient->lrem('queue:processing', 1, $link);
                     }
                 }
 
@@ -48,8 +55,8 @@ class Queue
             }
         }
 
-        while (pcntl_wait($status) > 0) {
-            echo "PROCESS WITH PID:" . getmypid() . " has done." . PHP_EOL;
+        while (($pid = pcntl_wait($status)) > 0) {
+            echo "PROCESS WITH PID:" . $pid . " has done." . PHP_EOL;
         }
     }
 
