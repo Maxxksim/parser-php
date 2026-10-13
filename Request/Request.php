@@ -3,6 +3,7 @@
 namespace App\Request;
 
 use App\Config\Config;
+use App\Logger\Logger;
 use GuzzleHttp\Client;
 use GuzzleHttp\Exception\GuzzleException;
 
@@ -12,7 +13,7 @@ class Request
     private array $proxies;
     private static int $indexNextProxy = 0;
 
-    public function __construct(private Config $config)
+    public function __construct(private Config $config, private Logger $logger)
     {
         $this->client = new Client();
         $this->proxies = $this->config->config('request.proxies');
@@ -31,7 +32,7 @@ class Request
                 'timeout' => 30,
             ]);
         } catch (GuzzleException $e) {
-            echo "Request error: {$e->getMessage()}";
+            $this->logger->log('debug', "REQUEST MESSAGE: Error: {$e->getMessage()}");
         }
 
         return $response->getBody();

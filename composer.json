@@ -15,6 +15,7 @@
     "symfony/dom-crawler": "^8.1",
     "symfony/css-selector": "^8.1",
       "ext-redis": "*",
-      "ext-pcntl": "*"
+      "ext-pcntl": "*",
+    "monolog/monolog": "^3.12"
     }
 }

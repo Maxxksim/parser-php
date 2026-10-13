@@ -2,6 +2,7 @@
 
 namespace App\Parser;
 
+use App\Logger\Logger;
 use App\Model\Answer;
 use App\Model\Question;
 use App\Redis\Redis;
@@ -15,13 +16,14 @@ class Parser
     private const string MAIN_PAGE_QUESTIONS_URL = 'https://www.kreuzwort-raetsel.net/uebersicht.html';
     private const string BASE_URL = 'https://www.kreuzwort-raetsel.net/';
 
-    public function __construct(private Request $request, private Redis $redisClient)
+    public function __construct(private Request $request, private Redis $redisClient, private Logger $logger)
     {
         $this->prepareDataToMainParsing();
     }
 
     private function prepareDataToMainParsing(): void
     {
+        $this->logger->log('info', 'PARSER MESSAGE: start preparing data for main parsing.');
         $pageWithLinksToQuestionsSortedByAlphabet = $this->getConvertedPage(self::MAIN_PAGE_QUESTIONS_URL);
         $linksListToQuestions = $pageWithLinksToQuestionsSortedByAlphabet->filter('ul.dnrg li a')->links();
 
@@ -32,6 +34,7 @@ class Parser
 
             $this->redisClient->connection()->lpush('queue', array_map(fn($linkToSection) => $linkToSection->getUri(), $linksListToQuestionsPaginatedBySection));
         }
+        $this->logger->log('info', 'PARSER MESSAGE: end preparing data for main parsing.');
     }
 
     private function getConvertedPage(string $url): Crawler
@@ -63,21 +66,15 @@ class Parser
 
             $question = Question::firstOrCreate(['question' => $question]);
 
-            echo " ----- Question: $question -----" . PHP_EOL;
             foreach ($parsedListWithAnswers as $key => $answer) {
-
                 $answersWithLengthList[] = ['answer' => $answer, 'length' => $parsedListWithAnswersLengths[$key]];
-
-                echo " -- Answer: $answer Length: $parsedListWithAnswersLengths[$key]" . PHP_EOL;
             }
-            echo PHP_EOL;
 
             Capsule::table('answers')->insertOrIgnore($answersWithLengthList);
             $answersList = array_column($answersWithLengthList, 'answer');
             $answersIdsList = Capsule::table('answers')->whereIn('answer', $answersList)->pluck('id');
 
             $question->answers()->syncWithoutDetaching($answersIdsList);
-
         }
     }
 }

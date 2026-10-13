@@ -6,12 +6,15 @@ require_once __DIR__ . "/../vendor/autoload.php";
 
 use App\Config\Config;
 use App\Database\Db;
+use App\Logger\Logger;
 
 $dotenv = Dotenv\Dotenv::createImmutable(__DIR__ . '/../');
 $dotenv->load();
 
 $config = new Config();
 new Db($config);
+
+$logger = new Logger($config);
 
 $migrations = glob(__DIR__ . '/migrations/*.php');
 
@@ -21,9 +24,9 @@ foreach ($migrations as $migrationPath) {
         $migration->up();
     } catch (PDOException $e) {
         if ($e->getCode() === '42S01') {
-            echo 'Migration ' . basename($migrationPath, '.php') . ' has been already executed.' . PHP_EOL;
+            $logger->log('info', 'MIGRATION MESSAGE: Migration ' . basename($migrationPath, '.php') . ' has been already executed.');
         } else {
-            echo 'Error:' . $e->getMessage() . PHP_EOL;
+            $logger->log('debug', 'MIGRATION MESSAGE Error:' . $e->getMessage());
         }
     }
 }
