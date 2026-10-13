@@ -6,10 +6,23 @@ namespace App\Config;
 
 class Config
 {
-    public function config(string $config): array|string|int
+    public function config(string $config, mixed $default = null): mixed
     {
-        [$cfg, $key] = explode('.', $config);
-        $configs = require __DIR__ . "/$cfg.php";
-        return $configs[$key];
+        [$configFile, $path] = explode('.', $config, 2);
+
+        if (!$path) {
+            return $configFile;
+        }
+
+        $settings = require __DIR__ . "/$configFile.php";
+
+        foreach (explode('.', $path) as $section) {
+            if (!array_key_exists($section, $settings) || !is_array($settings)) {
+                return $default;
+            }
+            $settings = $settings[$section];
+        }
+
+        return $settings;
     }
 }
