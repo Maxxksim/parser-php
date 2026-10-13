@@ -49,14 +49,14 @@ class Queue
                         }
 
                         try {
-                            if (!$newRedisClient->sismember('queue:parsed', $link)) {
+                            if (!$newRedisClient->sismember('queue:parsed:links', $link)) {
                                 $this->logger->log('info', 'QUEUE MESSAGE (PARSING): process ' . getmypid() . ' started parsing link: ' . $link);;
 
                                 if (($parsedData = $this->handler->parse($link))) {
                                     $newRedisClient->lpush('queue:parsed:data', [$parsedData]);
                                 }
 
-                                $newRedisClient->sadd('queue:parsed', [$link]);
+                                $newRedisClient->sadd('queue:parsed:links', [$link]);
                                 $this->logger->log('info', 'QUEUE MESSAGE (PARSING): process ' . getmypid() . ' ended parsing link: ' . $link);
                             }
                         } catch (\Throwable $e) {
