@@ -35,12 +35,12 @@ class Queue
 
                 while ($newRedisClient->llen('queue') > 0 || $newRedisClient->llen('queue:processing') > 0) {
 
-                    if (!($link = $this->redisClient->connection()->blmove('queue', 'queue:processing', 'RIGHT', 'LEFT', 30))) {
+                    if (!($link = $newRedisClient->blmove('queue', 'queue:processing', 'RIGHT', 'LEFT', 30))) {
                         continue;
                     }
 
                     try {
-                        if ($newRedisClient->sismember('queue:parsed', $link)) {
+                        if (!$newRedisClient->sismember('queue:parsed', $link)) {
                             $this->handler->parse($link);
                             $newRedisClient->sadd('queue:parsed', [$link]);
                         }
