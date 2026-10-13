@@ -14,11 +14,9 @@ require_once __DIR__ . "/vendor/autoload.php";
 $dotenv = Dotenv\Dotenv::createImmutable(__DIR__);
 $dotenv->load();
 
-
-$db = new Db();
 $config = new Config();
 $request = new Request($config);
-$redis = new Redis();
+$redis = new Redis($config);
 $parser = new Parser($request, $redis);
 $queue = new Queue($redis, $config, $parser);
 

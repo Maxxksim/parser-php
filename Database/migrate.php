@@ -4,12 +4,14 @@ declare(strict_types=1);
 
 require_once __DIR__ . "/../vendor/autoload.php";
 
+use App\Config\Config;
 use App\Database\Db;
 
 $dotenv = Dotenv\Dotenv::createImmutable(__DIR__ . '/../');
 $dotenv->load();
 
-new Db();
+$config = new Config();
+new Db($config);
 
 $migrations = glob(__DIR__ . '/migrations/*.php');
 

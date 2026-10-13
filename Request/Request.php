@@ -18,18 +18,17 @@ class Request
         $this->proxies = $this->config->config('request.proxies');
     }
 
-    public function makeRequest(string $method, string $url, bool $withProxy = false): ?string
+    public function makeRequest(string $method, string $url): ?string
     {
+        $withProxy = (bool)$this->config->config('request.with_proxy');
         try {
             $response = $this->client->request($method, $url, [
-                'headers' => [
-                    //'proxy' => $withProxy ? $this->getProxy() : '',
-                    'User-Agent' => 'Mozilla/5.0 (Linux; Android 16; Pixel 10) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/155.0.0.0 Mobile Safari/537.36'
-                ]
+                'proxy' => $withProxy ? $this->getProxy() : '',
+                'timeout' => 30
             ]);
         } catch (GuzzleException $e) {
             echo "Request error: {$e->getMessage()}";
-            return null;
+            exit(0);
         }
 
         return $response->getBody();

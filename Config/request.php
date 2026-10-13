@@ -13,4 +13,5 @@ return [
         "http://{$_ENV['PROXY_USERNAME']}:{$_ENV['PROXY_PASSWORD']}@31.58.9.4:6077",
         "http://{$_ENV['PROXY_USERNAME']}:{$_ENV['PROXY_PASSWORD']}@198.46.161.42:5092",
     ],
+    'with_proxy' => $_ENV['WITH_PROXY']
 ];
