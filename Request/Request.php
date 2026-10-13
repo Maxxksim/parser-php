@@ -20,18 +20,18 @@ class Request
 
     public function makeRequest(string $method, string $url): ?string
     {
-        $withProxy = (bool)$this->config->config('request.with_proxy');
+
         try {
             $response = $this->client->request($method, $url, [
                 'headers' => [
-                    'User-Agent' => 'Mozilla/5.0 (Linux; Android 16; Pixel 10) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/155.0.0.0 Mobile Safari/537.36'
+                    'User-Agent' => 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/155.0.0.0 Safari/537.36',
+                    'Accept' => '*/*'
                 ],
-                'proxy' => $withProxy ? $this->getProxy() : '',
-                'timeout' => 30
+                'proxy' => $this->getProxy(),
+                'timeout' => 30,
             ]);
         } catch (GuzzleException $e) {
             echo "Request error: {$e->getMessage()}";
-            exit(0);
         }
 
         return $response->getBody();
@@ -39,6 +39,10 @@ class Request
 
     private function getProxy(): string
     {
+        if ((bool)$this->config->config('request.with_proxy') === false) {
+            return '';
+        }
+
         if (static::$indexNextProxy + 1 > count($this->proxies)) {
             static::$indexNextProxy = 0;
         }
@@ -46,6 +50,16 @@ class Request
         $proxy = $this->proxies[static::$indexNextProxy];
         static::$indexNextProxy += 1;
 
-        return $proxy;
+
+        return $this->makeProxyUrl($proxy);
+    }
+
+    private function makeProxyUrl(string $proxy): string
+    {
+        return 'http://' .
+            rawurlencode($this->config->config('request.proxy.username')) .
+            ':' .
+            rawurlencode($this->config->config('request.proxy.password')) .
+            '@' . $proxy;
     }
 }
