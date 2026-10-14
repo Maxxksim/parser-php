@@ -94,7 +94,7 @@ class Parser
 
     private function makeUrlToSearchQuestion(string $question): string
     {
-        return 'https://www.kreuzwort-raetsel.net/suche.php?s' . rawurlencode($question) . '=&field=0&go=suchen#suchbox';
+        return 'https://www.kreuzwort-raetsel.net/suche.php?s=' . rawurlencode($question) . '&field=0&go=suchen#suchbox';
     }
 
     private function getAnswersWitLengths(Crawler $page, string $question, bool $checkQuestion = false): array
