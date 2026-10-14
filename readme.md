@@ -28,6 +28,6 @@ For Unix systems:
 
 Enter the commands in the terminal:  
 1. composer install   
-2. docker compose up -d    
-3. php migrate    
+2. docker compose up db redis -d    
+3. php ./Database/migrate.php    
 4. php startParser.php    
