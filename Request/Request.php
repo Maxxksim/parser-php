@@ -7,7 +7,9 @@ namespace App\Request;
 use App\Config\Config;
 use App\Logger\Logger;
 use GuzzleHttp\Client;
+use GuzzleHttp\Exception\ClientException;
 use GuzzleHttp\Exception\GuzzleException;
+use Psr\Http\Message\ResponseInterface;
 
 class Request
 {
@@ -23,7 +25,7 @@ class Request
         $this->proxies = $this->config->config('request.proxies');
     }
 
-    public function makeRequest(string $method, string $url): string
+    public function makeRequest(string $method, string $url): ResponseInterface
     {
 
         try {
@@ -35,11 +37,18 @@ class Request
                 'proxy' => $this->getProxy(),
                 'timeout' => 30,
             ]);
+        } catch (ClientException $e) {
+            if ($e->getResponse()->getStatusCode() === 404) {
+                $response = $e->getResponse();
+            } else {
+                throw $e;
+            }
         } catch (GuzzleException $e) {
             $this->logger->log('error', "REQUEST MESSAGE: Error: {$e->getMessage()}");
+            throw $e;
         }
 
-        return $response->getBody()->getContents();
+        return $response;
     }
 
     private function getProxy(): string

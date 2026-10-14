@@ -5,11 +5,10 @@ declare(strict_types=1);
 namespace App\Parser;
 
 use App\Logger\Logger;
-use App\Model\Question;
 use App\Redis\Redis;
 use App\Request\Request;
 use Symfony\Component\DomCrawler\Crawler;
-use Illuminate\Database\Capsule\Manager as Capsule;
+use Throwable;
 
 
 class Parser
@@ -17,6 +16,9 @@ class Parser
     private const string MAIN_PAGE_QUESTIONS_URL = 'https://www.kreuzwort-raetsel.net/uebersicht.html';
 
     private const string BASE_URL = 'https://www.kreuzwort-raetsel.net/';
+
+    private const string NOT_FOUND_QUESTION = 'Die Suche hat leider keine Ergebnisse.';
+
 
     public function __construct(private Request $request, private Redis $redisClient, private Logger $logger)
     {
@@ -26,12 +28,21 @@ class Parser
     private function prepareDataToMainParsing(): void
     {
         $this->logger->log('info', 'PARSER MESSAGE: start preparing data for main parsing.');
-        $pageWithLinksToQuestionsSortedByAlphabet = $this->getConvertedPage(self::MAIN_PAGE_QUESTIONS_URL);
+
+        try {
+            $response = $this->request->makeRequest('GET', self::MAIN_PAGE_QUESTIONS_URL);
+        } catch (Throwable $e) {
+            $this->logger->log('error', 'PARSER MESSAGE (PREPARING DATA) Error: ' . $e->getMessage());
+            exit();
+        }
+
+        $pageWithLinksToQuestionsSortedByAlphabet = new Crawler($response->getBody()->getContents(), self::BASE_URL);
         $linksListToQuestions = $pageWithLinksToQuestionsSortedByAlphabet->filter('ul.dnrg li a')->links();
 
         foreach ($linksListToQuestions as $linkToSections) {
+            $response = $this->request->makeRequest('GET', $linkToSections->getUri());
 
-            $pageWithLinksToQuestionsPaginatedBySection = $this->getConvertedPage($linkToSections->getUri());
+            $pageWithLinksToQuestionsPaginatedBySection = new Crawler($response->getBody()->getContents(), self::BASE_URL);
             $linksListToQuestionsPaginatedBySection = $pageWithLinksToQuestionsPaginatedBySection->filter('ul.dnrg li a')->links();
 
             $this->redisClient->connection()->lpush('queue', array_map(fn($linkToSection) => $linkToSection->getUri(), $linksListToQuestionsPaginatedBySection));
@@ -39,41 +50,38 @@ class Parser
         $this->logger->log('info', 'PARSER MESSAGE: end preparing data for main parsing.');
     }
 
-    private function getConvertedPage(string $url): Crawler
-    {
-        $page = $this->request->makeRequest('GET', $url);
-
-        return new Crawler($page, self::BASE_URL);
-    }
-
     public function parse(string $linkToSection): string|false
     {
-        $pageWithQuestionsSortedByAlphabet = $this->getConvertedPage($linkToSection);
+        $response = $this->request->makeRequest('GET', $linkToSection);
+
+        $pageWithQuestionsSortedByAlphabet = new Crawler($response->getBody()->getContents(), self::BASE_URL);
 
         $linksToQuestionsSortedByAlphabet = $pageWithQuestionsSortedByAlphabet->filter('tbody tr td.Question a')->links();
 
         $questionsWithAnswers = [];
         foreach ($linksToQuestionsSortedByAlphabet as $linkToQuestionWithAnswers) {
-
-            $answersWithLengthList = [];
-
-            $pageWithAnswers = $this->getConvertedPage($linkToQuestionWithAnswers->getUri());
-
             $question = $linkToQuestionWithAnswers->getNode()->nodeValue;
 
-            $parsedListWithAnswers = $pageWithAnswers->filter('tbody tr td.Answer a')->each(function (Crawler $node): string {
-                return $node->text();
-            });
-            $parsedListWithAnswersLengths = $pageWithAnswers->filter('tbody tr td.Length')->each(function (Crawler $node): string {
-                return $node->text();
-            });
+            $response = $this->request->makeRequest('GET', $linkToQuestionWithAnswers->getUri());
 
+            if ($response->getStatusCode() === 404) {
+                $response = $this->request->makeRequest('GET', $this->makeUrlToSearchQuestion($question));
 
-            foreach ($parsedListWithAnswers as $key => $answer) {
-                $answersWithLengthList[] = ['answer' => $answer, 'length' => (int)$parsedListWithAnswersLengths[$key]];
+                $pageWithAnswers = new Crawler($response->getBody()->getContents(), self::BASE_URL);
+
+                if ($pageWithAnswers->filter('form div#SearchresultsCounter strong')->text() === self::NOT_FOUND_QUESTION) {
+                    continue;
+                }
+
+                $answersWithLengthsList = $this->getAnswersWitLengths($pageWithAnswers, $question, true);
+
+            } else {
+                $pageWithAnswers = new Crawler($response->getBody()->getContents());
+
+                $answersWithLengthsList = $this->getAnswersWitLengths($pageWithAnswers, $question);
             }
 
-            $questionsWithAnswers[$linkToSection][$question] = $answersWithLengthList;
+            $questionsWithAnswers[$linkToSection][$question] = $answersWithLengthsList;
         }
 
         return $this->convertToJson($questionsWithAnswers);
@@ -83,4 +91,26 @@ class Parser
     {
         return json_encode($data);
     }
+
+    private function makeUrlToSearchQuestion(string $question): string
+    {
+        return 'https://www.kreuzwort-raetsel.net/suche.php?s' . rawurlencode($question) . '=&field=0&go=suchen#suchbox';
+    }
+
+    private function getAnswersWitLengths(Crawler $page, string $question, bool $checkQuestion = false): array
+    {
+        $answersWithLengthsList = [];
+        $page->filter('tbody tr')->each(function (Crawler $node) use ($question, &$answersWithLengthsList, &$checkQuestion) {
+            $questionFromPage = $node->filter('td.Question');
+            $answerFromPage = $node->filter('td.Answer');
+            $lengthFromPage = $node->filter('td.Length');
+
+            if (!$checkQuestion || $question === $questionFromPage->text()) {
+                $answersWithLengthsList[] = ['answer' => $answerFromPage->text(), 'length' => (int)$lengthFromPage->text()];
+            }
+        });
+
+        return $answersWithLengthsList;
+    }
+
 }
