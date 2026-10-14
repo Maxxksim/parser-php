@@ -53,7 +53,7 @@ class Request
 
     private function getProxy(): string
     {
-        if ((bool)$this->config->config('request.with_proxy') === false) {
+        if (filter_var($this->config->config('request.with_proxy'), FILTER_VALIDATE_BOOLEAN) === false) {
             return '';
         }
 
