@@ -27,13 +27,14 @@ class Parser
 
     private function prepareDataToMainParsing(): void
     {
-        $this->logger->log('info', 'PARSER MESSAGE: start preparing data for main parsing.');
+        $this->logger->info('PARSER MESSAGE: start preparing data for main parsing.');
 
         try {
             $response = $this->request->makeRequest('GET', self::MAIN_PAGE_QUESTIONS_URL);
         } catch (Throwable $e) {
-            $this->logger->log('error', 'PARSER MESSAGE (PREPARING DATA) Error: ' . $e->getMessage());
-            exit();
+            $this->logger->error('PARSER MESSAGE (PREPARING DATA) Error: ' . $e->getMessage());
+
+            exit(1);
         }
 
         $pageWithLinksToQuestionsSortedByAlphabet = new Crawler($response->getBody()->getContents(), self::BASE_URL);
@@ -41,49 +42,56 @@ class Parser
 
         foreach ($linksListToQuestions as $linkToSections) {
             $response = $this->request->makeRequest('GET', $linkToSections->getUri());
+            $linksListToQuestionsPaginatedBySection = new Crawler(
+                $response->getBody()->getContents(),
+                self::BASE_URL,
+            )->filter('ul.dnrg li a')->links();
 
-            $pageWithLinksToQuestionsPaginatedBySection = new Crawler($response->getBody()->getContents(), self::BASE_URL);
-            $linksListToQuestionsPaginatedBySection = $pageWithLinksToQuestionsPaginatedBySection->filter('ul.dnrg li a')->links();
-
-            $this->redisClient->connection()->lpush('queue', array_map(fn($linkToSection) => $linkToSection->getUri(), $linksListToQuestionsPaginatedBySection));
+            $this->redisClient->connection()->lpush(
+                'queue',
+                array_map(fn($linkToSection) => $linkToSection->getUri(), $linksListToQuestionsPaginatedBySection),
+            );
         }
-        $this->logger->log('info', 'PARSER MESSAGE: end preparing data for main parsing.');
+        $this->logger->info('PARSER MESSAGE: end preparing data for main parsing.');
     }
 
     public function parse(string $linkToSection): string|false
     {
         $response = $this->request->makeRequest('GET', $linkToSection);
 
-        $pageWithQuestionsSortedByAlphabet = new Crawler($response->getBody()->getContents(), self::BASE_URL);
-
-        $linksToQuestionsSortedByAlphabet = $pageWithQuestionsSortedByAlphabet->filter('tbody tr td.Question a')->links();
+        $linksToQuestionsSortedByAlphabet = new Crawler(
+            $response->getBody()->getContents(),
+            self::BASE_URL,
+        )->filter('tbody tr td.Question a')->links();
 
         $questionsWithAnswers = [];
+
         foreach ($linksToQuestionsSortedByAlphabet as $linkToQuestionWithAnswers) {
             $question = $linkToQuestionWithAnswers->getNode()->nodeValue;
-
             $response = $this->request->makeRequest('GET', $linkToQuestionWithAnswers->getUri());
 
             if ($response->getStatusCode() === 404) {
-                $response = $this->request->makeRequest('GET', $this->makeUrlToSearchQuestion($question));
-
-                $pageWithAnswers = new Crawler($response->getBody()->getContents(), self::BASE_URL);
+                $pageWithAnswers = new Crawler($response->getBody()->getContents());
 
                 if ($pageWithAnswers->filter('form div#SearchresultsCounter strong')->text() === self::NOT_FOUND_QUESTION) {
                     continue;
                 }
 
-                $answersWithLengthsList = $this->getAnswersWitLengths($pageWithAnswers, $question, true);
-
+                $answersWithLengthsList = $this->getAnswersWithLengths(
+                    $pageWithAnswers,
+                    $question,
+                    true,
+                );
             } else {
                 $pageWithAnswers = new Crawler($response->getBody()->getContents());
 
-                $answersWithLengthsList = $this->getAnswersWitLengths($pageWithAnswers, $question);
+                $answersWithLengthsList = $this->getAnswersWithLengths(
+                    $pageWithAnswers,
+                    $question,
+                );
             }
-
             $questionsWithAnswers[$linkToSection][$question] = $answersWithLengthsList;
         }
-
         return $this->convertToJson($questionsWithAnswers);
     }
 
@@ -97,19 +105,51 @@ class Parser
         return 'https://www.kreuzwort-raetsel.net/suche.php?s=' . rawurlencode($question) . '&field=0&go=suchen#suchbox';
     }
 
-    private function getAnswersWitLengths(Crawler $page, string $question, bool $checkQuestion = false): array
+    private function getAnswersWithLengths(Crawler $page, string $question, bool $checkQuestion = false): array
     {
         $answersWithLengthsList = [];
-        $page->filter('tbody tr')->each(function (Crawler $node) use ($question, &$answersWithLengthsList, &$checkQuestion) {
+
+        if ($checkQuestion || !($page->filter('span[data-lf="more"][hidden]')->count() > 0)) {
+            $page = new Crawler(
+                $this->request->makeRequest('GET',
+                    $this->makeUrlToSearchQuestion($question))->getBody()->getContents(),
+                self::BASE_URL,
+            );
+
+            while (($nextLink = $page->filter('tfoot td ul.Pagination li.Next a'))->count() > 0) {
+                $nextUrl = $nextLink->link()->getUri();
+                $answersWithLengthsList = $this->parseAnswers($page, $checkQuestion = true, $question, $answersWithLengthsList);
+                $page = new Crawler($this->request->makeRequest(
+                    'GET', $nextUrl)->getBody()->getContents(),
+                    self::BASE_URL,
+                );
+            }
+        }
+
+        return $this->parseAnswers($page, $checkQuestion, $question, $answersWithLengthsList);
+    }
+
+    private function parseAnswers(Crawler $page, bool $checkQuestion, string $question, array $answersWithLengthsList): ?array
+    {
+
+        foreach ($page->filter('tbody tr') as $tr) {
+            $node = new Crawler($tr);
+
             $questionFromPage = $node->filter('td.Question');
             $answerFromPage = $node->filter('td.Answer');
             $lengthFromPage = $node->filter('td.Length');
 
-            if (!$checkQuestion || $question === $questionFromPage->text()) {
-                $answersWithLengthsList[] = ['answer' => $answerFromPage->text(), 'length' => (int)$lengthFromPage->text()];
+            if ($answerFromPage->count() === 0) {
+                continue;
             }
-        });
 
+            if (!$checkQuestion || $question === $questionFromPage->text()) {
+                $answersWithLengthsList[] = [
+                    'answer' => $answerFromPage->text(),
+                    'length' => (int)$lengthFromPage->text(),
+                ];
+            }
+        }
         return $answersWithLengthsList;
     }
 
