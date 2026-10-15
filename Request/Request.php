@@ -41,10 +41,12 @@ class Request
             if ($e->getResponse()->getStatusCode() === 404) {
                 $response = $e->getResponse();
             } else {
+
                 throw $e;
             }
         } catch (GuzzleException $e) {
-            $this->logger->log('error', "REQUEST MESSAGE: Error: {$e->getMessage()}");
+            $this->logger->error("REQUEST MESSAGE: Error: {$e->getMessage()}");
+
             throw $e;
         }
 
@@ -53,7 +55,7 @@ class Request
 
     private function getProxy(): string
     {
-        if ((bool)$this->config->config('request.with_proxy') === false) {
+        if (filter_var($this->config->config('request.with_proxy'), FILTER_VALIDATE_BOOLEAN) === false) {
             return '';
         }
 
