@@ -38,7 +38,10 @@ class Queue
                 $newRedisClient = $this->redisClient->getInstance();
                 new Db($this->config);
 
-                $this->logger->info('QUEUE MESSAGE (PROCESS): process with PID: ' . getmypid() . ' has been started.');
+                $this->logger->info(
+                    'QUEUE MESSAGE (PROCESS): process with PID: {pid} has been started.',
+                    ['pid' => getmypid()],
+                );
 
                 if ($indexLastProcess !== $i) {
 
@@ -50,19 +53,28 @@ class Queue
                         try {
 
                             if (!$newRedisClient->sismember('queue:parsed:links', $link)) {
-                                $this->logger->info('QUEUE MESSAGE (PARSING): process ' . getmypid() . ' started parsing link: ' . $link);
+                                $this->logger->info(
+                                    'QUEUE MESSAGE (PARSING): process {pid} started parsing link: {link} .',
+                                    ['pid' => getmypid(), 'link' => $link],
+                                );
 
                                 if (($parsedData = $this->handler->parse($link))) {
                                     $newRedisClient->lpush('queue:parsed:data', [$parsedData]);
                                 }
 
                                 $newRedisClient->sadd('queue:parsed:links', [$link]);
-                                $this->logger->info('QUEUE MESSAGE (PARSING): process ' . getmypid() . ' ended parsing link: ' . $link);
+                                $this->logger->info(
+                                    'QUEUE MESSAGE (PARSING): process {pid} ended parsing link: {link}.',
+                                    ['pid' => getmypid(), 'link' => $link],
+                                );
                             }
                         } catch (Throwable $e) {
                             $newRedisClient->lrem('queue:processing', 1, $link);
                             $newRedisClient->lpush('queue', [$link]);
-                            $this->logger->error('QUEUE MESSAGE (PARSING): error: ' . $e->getMessage());
+                            $this->logger->error(
+                                'QUEUE MESSAGE (PARSING): Error: {error}.',
+                                ['error' => $e->getMessage()],
+                            );
                         }
                     }
                 } else {
@@ -83,7 +95,10 @@ class Queue
                             $newRedisClient->lrem('queue:processing', 1, $link);
                         } catch (Throwable $e) {
                             $newRedisClient->lpush('queue:parsed:data', [$data[1]]);
-                            $this->logger->error('QUEUE MESSAGE (SAVING): error: ' . $e->getMessage());
+                            $this->logger->error(
+                                'QUEUE MESSAGE (SAVING): Error: {error}.',
+                                ['error' => $e->getMessage()],
+                            );
                         }
                     }
                 }
@@ -93,7 +108,10 @@ class Queue
         }
 
         while (($pid = pcntl_wait($status)) > 0) {
-            $this->logger->info('QUEUE MESSAGE (PROCESS): process with PID ' . $pid . ' has done.');
+            $this->logger->info(
+                'QUEUE MESSAGE (PROCESS): process with PID {pid} has done.',
+                ['pid' => $pid],
+            );
         }
     }
 
@@ -103,9 +121,14 @@ class Queue
         $count = $this->redisClient->connection()->llen('queue:processing');
 
         for ($i = 0; $i < $count; $i++) {
-            $this->redisClient->connection()->lmove('queue:processing', 'queue', 'RIGHT', 'LEFT');
+            $this->redisClient->connection()->lmove(
+                'queue:processing',
+                'queue',
+                'RIGHT',
+                'LEFT',
+            );
         }
-        $this->logger->info("QUEUE MESSAGE (MOVING LINKS): $count links have been moved.");
+        $this->logger->info('QUEUE MESSAGE (MOVING LINKS): {count} links have been moved.', ['count' => $count]);
     }
 
     private function getNumberProcess(): int

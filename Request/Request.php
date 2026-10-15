@@ -38,6 +38,7 @@ class Request
                 'timeout' => 30,
             ]);
         } catch (ClientException $e) {
+            
             if ($e->getResponse()->getStatusCode() === 404) {
                 $response = $e->getResponse();
             } else {
@@ -45,7 +46,7 @@ class Request
                 throw $e;
             }
         } catch (GuzzleException $e) {
-            $this->logger->error("REQUEST MESSAGE: Error: {$e->getMessage()}");
+            $this->logger->error('REQUEST MESSAGE: Error: {error}', ['error' => $e->getMessage()]);
 
             throw $e;
         }

@@ -32,7 +32,7 @@ class Parser
         try {
             $response = $this->request->makeRequest('GET', self::MAIN_PAGE_QUESTIONS_URL);
         } catch (Throwable $e) {
-            $this->logger->error('PARSER MESSAGE (PREPARING DATA) Error: ' . $e->getMessage());
+            $this->logger->error('PARSER MESSAGE (PREPARING DATA) Error: {error}', ['error' => $e->getMessage()]);
 
             exit(1);
         }
@@ -117,10 +117,14 @@ class Parser
             );
 
             while (($nextLink = $page->filter('tfoot td ul.Pagination li.Next a'))->count() > 0) {
-                $nextUrl = $nextLink->link()->getUri();
-                $answersWithLengthsList = $this->parseAnswers($page, $checkQuestion = true, $question, $answersWithLengthsList);
+                $answersWithLengthsList = $this->parseAnswers(
+                    $page,
+                    $checkQuestion = true,
+                    $question,
+                    $answersWithLengthsList,
+                );
                 $page = new Crawler($this->request->makeRequest(
-                    'GET', $nextUrl)->getBody()->getContents(),
+                    'GET', $nextLink->link()->getUri())->getBody()->getContents(),
                     self::BASE_URL,
                 );
             }

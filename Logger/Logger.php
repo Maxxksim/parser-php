@@ -9,6 +9,7 @@ use Monolog\Formatter\LineFormatter;
 use Monolog\Handler\StreamHandler;
 use Monolog\Level;
 use Monolog\Logger as MLogger;
+use Monolog\Processor\PsrLogMessageProcessor;
 
 class Logger
 {
@@ -31,6 +32,7 @@ class Logger
                 true,
             ));
         $this->logger->pushHandler($handler);
+        $this->logger->pushProcessor(new PsrLogMessageProcessor());
     }
 
     private function getLogMode(): string
