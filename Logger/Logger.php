@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace App\Logger;
 
 use App\Config\Config;
-use InvalidArgumentException;
 use Monolog\Formatter\LineFormatter;
 use Monolog\Handler\StreamHandler;
 use Monolog\Level;
@@ -24,28 +23,28 @@ class Logger
     {
         $this->logger = new MLogger('parser');
         $handler = new StreamHandler($this->getLogMode(), Level::Debug);
-        $handler->setFormatter(new LineFormatter(null, null, false, true));
+        $handler->setFormatter(
+            new LineFormatter(
+                null,
+                null,
+                false,
+                true,
+            ));
         $this->logger->pushHandler($handler);
     }
 
     private function getLogMode(): string
     {
-        try {
-            $mode = self::LOG_MODE_MAPPING[$this->config->config('log.mode')];
-        } catch (InvalidArgumentException) {
-            $mode = 'file';
-        }
-
-        return $mode;
-    }
-
-    public function log($level, string|\Stringable $message, array $context = []): void
-    {
-        $this->logger->log($level, $message, $context);
+        return self::LOG_MODE_MAPPING[$this->config->config('log.mode')] ?? self::LOG_MODE_MAPPING['file'];
     }
 
     public function getMonolog(): MLogger
     {
         return $this->logger;
+    }
+
+    public function __call(string $level, array $arguments)
+    {
+        $this->logger->log($level, ...$arguments);
     }
 }
