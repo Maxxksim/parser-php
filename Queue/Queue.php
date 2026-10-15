@@ -36,7 +36,7 @@ class Queue
             if ($pid === 0) {
 
                 $newRedisClient = $this->redisClient->getInstance();
-                new Db($this->config);
+
 
                 $this->logger->info(
                     'QUEUE MESSAGE (PROCESS): process with PID: {pid} has been started.',
@@ -54,7 +54,7 @@ class Queue
 
                             if (!$newRedisClient->sismember('queue:parsed:links', $link)) {
                                 $this->logger->info(
-                                    'QUEUE MESSAGE (PARSING): process {pid} started parsing link: {link} .',
+                                    'QUEUE MESSAGE (PARSING): process {pid} started parsing link: {link}.',
                                     ['pid' => getmypid(), 'link' => $link],
                                 );
 
@@ -79,6 +79,7 @@ class Queue
                     }
                 } else {
                     $controller = new ParsedDataController();
+                    new Db($this->config);
 
                     while (
                         $newRedisClient->llen('queue') > 0 ||
