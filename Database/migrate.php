@@ -22,11 +22,12 @@ foreach ($migrations as $migrationPath) {
     $migration = require $migrationPath;
     try {
         $migration->up();
+        $logger->info('MIGRATION MESSAGE: Migration '.basename($migrationPath, '.php').' has been migrated.');
     } catch (PDOException $e) {
         if ($e->getCode() === '42S01') {
-            $logger->log('info', 'MIGRATION MESSAGE: Migration '.basename($migrationPath, '.php').' has been already executed.');
+            $logger->info('MIGRATION MESSAGE: Migration '.basename($migrationPath, '.php').' has been already executed.');
         } else {
-            $logger->log('error', 'MIGRATION MESSAGE Error:'.$e->getMessage());
+            $logger->error('MIGRATION MESSAGE Error:'.$e->getMessage());
         }
     }
 }
