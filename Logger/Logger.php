@@ -32,7 +32,7 @@ class Logger
                 true,
             ));
         $this->logger->pushHandler($handler);
-        $this->logger->pushProcessor(new PsrLogMessageProcessor());
+        $this->logger->pushProcessor(new PsrLogMessageProcessor(null, true));
     }
 
     private function getLogMode(): string
