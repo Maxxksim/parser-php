@@ -57,14 +57,12 @@ class Parser
 
     public function parse(string $linkToSection): string|false
     {
+        $questionsWithAnswers = [];
         $response = $this->request->makeRequest('GET', $linkToSection);
-
         $linksToQuestionsSortedByAlphabet = new Crawler(
             $response->getBody()->getContents(),
             self::BASE_URL,
         )->filter('tbody tr td.Question a')->links();
-
-        $questionsWithAnswers = [];
 
         foreach ($linksToQuestionsSortedByAlphabet as $linkToQuestionWithAnswers) {
             $question = $linkToQuestionWithAnswers->getNode()->nodeValue;
@@ -73,22 +71,25 @@ class Parser
             if ($response->getStatusCode() === 404) {
                 $pageWithAnswers = new Crawler($response->getBody()->getContents());
 
-                if ($pageWithAnswers->filter('form div#SearchresultsCounter strong')->text() === self::NOT_FOUND_QUESTION) {
-                    continue;
-                }
-
-                $answersWithLengthsList = $this->getAnswersWithLengths(
+                if (!($result = $this->getAnswersWithLengths(
                     $pageWithAnswers,
                     $question,
                     true,
-                );
+                ))) {
+                    continue;
+                }
+                $answersWithLengthsList = $result;
+
             } else {
                 $pageWithAnswers = new Crawler($response->getBody()->getContents());
 
-                $answersWithLengthsList = $this->getAnswersWithLengths(
+                if (!($result = $this->getAnswersWithLengths(
                     $pageWithAnswers,
                     $question,
-                );
+                ))) {
+                    continue;
+                }
+                $answersWithLengthsList = $result;
             }
             $questionsWithAnswers[$linkToSection][$question] = $answersWithLengthsList;
         }
@@ -105,7 +106,7 @@ class Parser
         return 'https://www.kreuzwort-raetsel.net/suche.php?s=' . rawurlencode($question) . '&field=0&go=suchen#suchbox';
     }
 
-    private function getAnswersWithLengths(Crawler $page, string $question, bool $checkQuestion = false): array
+    private function getAnswersWithLengths(Crawler $page, string $question, bool $checkQuestion = false): ?array
     {
         $answersWithLengthsList = [];
 
@@ -115,6 +116,10 @@ class Parser
                     $this->makeUrlToSearchQuestion($question))->getBody()->getContents(),
                 self::BASE_URL,
             );
+
+            if ($page->filter('form div#SearchresultsCounter strong')->text() === self::NOT_FOUND_QUESTION) {
+                return null;
+            }
 
             while (($nextLink = $page->filter('tfoot td ul.Pagination li.Next a'))->count() > 0) {
                 $answersWithLengthsList = $this->parseAnswers(
@@ -129,7 +134,6 @@ class Parser
                 );
             }
         }
-
         return $this->parseAnswers($page, $checkQuestion, $question, $answersWithLengthsList);
     }
 
