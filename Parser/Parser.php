@@ -47,15 +47,44 @@ class Parser
                 self::BASE_URL,
             )->filter('ul.dnrg li a')->links();
 
-            $this->redisClient->connection()->lpush(
-                'queue',
-                array_map(fn($linkToSection) => $linkToSection->getUri(), $linksListToQuestionsPaginatedBySection),
-            );
+            array_map(fn($linkToSection) => $linkToSection->getUri(), $linksListToQuestionsPaginatedBySection)
+                |> $this->takeOnlyNewLinks(...)
+                |> (function (array $newLinks) {
+
+                if ($newLinks !== []) {
+                    $this->redisClient->connection()->transaction(function ($transaction) use ($newLinks) {
+                        $transaction->lpush('queue', $newLinks);
+                        $transaction->sadd('set:processing', $newLinks);
+                    });
+                }
+            });
+
         }
         $this->logger->info('PARSER MESSAGE: end preparing data for main parsing.');
     }
 
-    public function parse(string $linkToSection): string|false
+    private function takeOnlyNewLinks(array $links): array
+    {
+        if ($links === []) {
+            return [];
+        }
+
+        $onlyNewLinks = [];
+        $resultProcessing = $this->redisClient->connection()->smismember('set:processing', ...$links);
+        $resultParsed = $this->redisClient->connection()->smismember('set:parsed:links', ...$links);
+
+        foreach ($links as $index => $link) {
+
+            if ($resultParsed[$index] || $resultProcessing[$index]) {
+                continue;
+            } else {
+                $onlyNewLinks[] = $link;
+            }
+        }
+        return $onlyNewLinks;
+    }
+
+    public function parse(string $linkToSection): string
     {
         $questionsWithAnswers = [];
         $response = $this->request->makeRequest('GET', $linkToSection);
@@ -93,12 +122,7 @@ class Parser
             }
             $questionsWithAnswers[$linkToSection][$question] = $answersWithLengthsList;
         }
-        return $this->convertToJson($questionsWithAnswers);
-    }
-
-    public function convertToJson(array $data): string|false
-    {
-        return json_encode($data);
+        return json_encode($questionsWithAnswers);
     }
 
     private function makeUrlToSearchQuestion(string $question): string

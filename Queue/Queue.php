@@ -18,6 +18,7 @@ class Queue
 
     private const int DEFAULT_COUNT_PROCESSES = 2;
     private const int SAVING_PROCESS = 1;
+    private const int MAX_ATTEMPTS = 3;
 
     public function __construct(private Redis $redisClient, private Config $config, private Parser $handler, private Logger $logger)
     {
@@ -36,8 +37,6 @@ class Queue
             if ($pid === 0) {
 
                 $newRedisClient = $this->redisClient->getInstance();
-
-
                 $this->logger->info(
                     'QUEUE MESSAGE (PROCESS): process with PID: {pid} has been started.',
                     ['pid' => getmypid()],
@@ -46,35 +45,56 @@ class Queue
                 if ($indexLastProcess !== $i) {
 
                     while ($newRedisClient->llen('queue') > 0 || $newRedisClient->llen('queue:processing') > 0) {
+
                         if (!($link = $newRedisClient->blmove('queue', 'queue:processing', 'RIGHT', 'LEFT', 30))) {
                             continue;
                         }
 
                         try {
+                            $this->logger->info(
+                                'QUEUE MESSAGE (PARSING): process {pid} started parsing link: {link}.',
+                                ['pid' => getmypid(), 'link' => $link],
+                            );
+                            $parsedData = $this->handler->parse($link);
 
-                            if (!$newRedisClient->sismember('queue:parsed:links', $link)) {
-                                $this->logger->info(
-                                    'QUEUE MESSAGE (PARSING): process {pid} started parsing link: {link}.',
-                                    ['pid' => getmypid(), 'link' => $link],
+                            if (json_decode($parsedData) === []) {
+                                $newRedisClient->lrem('queue:processing', 1, $link);
+                                $newRedisClient->srem('set:processing', $link);
+
+                            } else {
+                                $newRedisClient->lpush('queue:parsed:data', [$parsedData]);
+                            }
+
+                            $newRedisClient->sadd('set:parsed:links', [$link]);
+                            $this->logger->info(
+                                'QUEUE MESSAGE (PARSING): process {pid} ended parsing link: {link}.',
+                                ['pid' => getmypid(), 'link' => $link],
+                            );
+
+                        } catch (Throwable $e) {
+                            $attempt = $newRedisClient->hincrby('queue:attempts', $link, 1);
+
+                            if ($attempt >= self::MAX_ATTEMPTS) {
+                                $newRedisClient->transaction(function ($transaction) use ($link) {
+                                    $transaction->sadd('set:failed:links', [$link]);
+                                    $transaction->lrem('queue:processing', 1, $link);
+                                    $transaction->srem('set:processing', [$link]);
+                                    $transaction->hdel('queue:attempts', [$link]);
+                                });
+                                $this->logger->error(
+                                    'QUEUE MESSAGE (PARSING): Error: link {link} haven\'t been parsed after {attempts} attempts.',
+                                    ['link' => $link, 'attempts' => self::MAX_ATTEMPTS],
                                 );
 
-                                if (($parsedData = $this->handler->parse($link))) {
-                                    $newRedisClient->lpush('queue:parsed:data', [$parsedData]);
-                                }
+                            } else {
+                                $newRedisClient->lpush('queue', [$link]);
+                                $newRedisClient->lrem('queue:processing', 1, $link);
 
-                                $newRedisClient->sadd('queue:parsed:links', [$link]);
-                                $this->logger->info(
-                                    'QUEUE MESSAGE (PARSING): process {pid} ended parsing link: {link}.',
-                                    ['pid' => getmypid(), 'link' => $link],
+                                $this->logger->error(
+                                    'QUEUE MESSAGE (PARSING): Error: {error}.',
+                                    ['error' => $e->getMessage()],
                                 );
                             }
-                        } catch (Throwable $e) {
-                            $newRedisClient->lrem('queue:processing', 1, $link);
-                            $newRedisClient->lpush('queue', [$link]);
-                            $this->logger->error(
-                                'QUEUE MESSAGE (PARSING): Error: {error}.',
-                                ['error' => $e->getMessage()],
-                            );
                         }
                     }
                 } else {
@@ -94,6 +114,7 @@ class Queue
                         try {
                             $link = $controller->save($data[1]);
                             $newRedisClient->lrem('queue:processing', 1, $link);
+                            $newRedisClient->srem('set:processing', $link);
                         } catch (Throwable $e) {
                             $newRedisClient->lpush('queue:parsed:data', [$data[1]]);
                             $this->logger->error(
