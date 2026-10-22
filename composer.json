@@ -14,7 +14,8 @@
     "symfony/css-selector": "^8.1",
       "ext-redis": "*",
       "ext-pcntl": "*",
-    "monolog/monolog": "^3.12"
+    "monolog/monolog": "^3.12",
+      "ext-posix": "*"
     },
   "require-dev": {
     "laravel/pint": "^1.32"

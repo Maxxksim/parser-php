@@ -19,10 +19,29 @@ class Queue
     private const int DEFAULT_COUNT_PROCESSES = 2;
     private const int SAVING_PROCESS = 1;
     private const int MAX_ATTEMPTS = 3;
+    public bool $shouldStop = false;
+    private array $processesPids = [];
 
     public function __construct(private Redis $redisClient, private Config $config, private Parser $handler, private Logger $logger)
     {
+        pcntl_async_signals(true);
+        pcntl_signal(SIGTERM, [$this, 'handleStop']);
+        pcntl_signal(SIGINT, [$this, 'handleStop']);
         $this->countProcesses = $this->getNumberProcess();
+    }
+
+    public function handleStop(): void
+    {
+        if ($this->shouldStop) {
+            return;
+        }
+        $this->shouldStop = true;
+        foreach ($this->processesPids as $pid) {
+            posix_kill($pid, SIGTERM);
+        }
+        $this->logger->info(
+            'QUEUE MESSAGE (STOP): start stoping processes.'
+        );
     }
 
     public function startQueue(): void
@@ -31,11 +50,20 @@ class Queue
         $this->redisClient->connection()->disconnect();
         $indexLastProcess = $this->countProcesses - self::SAVING_PROCESS;
 
+
         for ($i = 0; $i < $this->countProcesses; $i++) {
             $pid = pcntl_fork();
 
+            if ($pid === -1) {
+                $this->logger->error('QUEUE MESSAGE (PROCESS): fork failed.');
+                continue;
+            }
+            if ($pid > 0) {
+                $this->processesPids[] = $pid;
+                continue;
+            }
             if ($pid === 0) {
-
+                $this->processesPids = [];
                 $newRedisClient = $this->redisClient->getInstance();
                 $this->logger->info(
                     'QUEUE MESSAGE (PROCESS): process with PID: {pid} has been started.',
@@ -44,7 +72,7 @@ class Queue
 
                 if ($indexLastProcess !== $i) {
 
-                    while ($newRedisClient->llen('queue') > 0 || $newRedisClient->llen('queue:processing') > 0) {
+                    while (!$this->shouldStop && ($newRedisClient->llen('queue') > 0 || $newRedisClient->llen('queue:processing') > 0)) {
 
                         if (!($link = $newRedisClient->blmove('queue', 'queue:processing', 'RIGHT', 'LEFT', 30))) {
                             continue;
@@ -106,6 +134,9 @@ class Queue
                         $newRedisClient->llen('queue:processing') > 0 ||
                         $newRedisClient->llen('queue:parsed:data') > 0
                     ) {
+                        if ($this->shouldStop && $newRedisClient->llen('queue:parsed:data') === 0) {
+                            break;
+                        }
 
                         if (!($data = $newRedisClient->brpop('queue:parsed:data', 30))) {
                             continue;
@@ -129,11 +160,18 @@ class Queue
             }
         }
 
-        while (($pid = pcntl_wait($status)) > 0) {
-            $this->logger->info(
-                'QUEUE MESSAGE (PROCESS): process with PID {pid} has done.',
-                ['pid' => $pid],
-            );
+        while ($this->processesPids !== []) {
+            $pid = pcntl_waitpid(-1, $status);
+
+            if ($pid > 0) {
+                if (($key = array_search($pid, $this->processesPids, true)) !== false) {
+                    unset($this->processesPids[$key]);
+                }
+                $this->logger->info(
+                    'QUEUE MESSAGE (PROCESS): process with PID {pid} has done.',
+                    ['pid' => $pid],
+                );
+            }
         }
     }
 
