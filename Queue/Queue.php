@@ -19,7 +19,7 @@ class Queue
     private const int DEFAULT_COUNT_PROCESSES = 2;
     private const int SAVING_PROCESS = 1;
     private const int MAX_ATTEMPTS = 3;
-    public bool $shouldStop = false;
+    private bool $shouldStop = false;
     private array $processesPids = [];
 
     public function __construct(private Redis $redisClient, private Config $config, private Parser $handler, private Logger $logger)
@@ -58,10 +58,12 @@ class Queue
                 $this->logger->error('QUEUE MESSAGE (PROCESS): fork failed.');
                 continue;
             }
+
             if ($pid > 0) {
                 $this->processesPids[] = $pid;
                 continue;
             }
+
             if ($pid === 0) {
                 $this->processesPids = [];
                 $newRedisClient = $this->redisClient->getInstance();
@@ -161,9 +163,10 @@ class Queue
         }
 
         while ($this->processesPids !== []) {
-            $pid = pcntl_waitpid(-1, $status);
+            $pid = pcntl_waitpid(-1, $status, WNOHANG);
 
             if ($pid > 0) {
+
                 if (($key = array_search($pid, $this->processesPids, true)) !== false) {
                     unset($this->processesPids[$key]);
                 }
@@ -171,6 +174,11 @@ class Queue
                     'QUEUE MESSAGE (PROCESS): process with PID {pid} has done.',
                     ['pid' => $pid],
                 );
+
+            } elseif ($pid === -1) {
+                break;
+            } else {
+                sleep(1);
             }
         }
     }
