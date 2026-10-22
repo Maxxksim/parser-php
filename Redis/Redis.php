@@ -11,16 +11,31 @@ class Redis
 {
     private PredisClient $client;
 
+    /**
+     * Creates the Redis client.
+     *
+     * @param Config $config
+     */
     public function __construct(private Config $config)
     {
         $this->client = $this->getInstance();
     }
 
+    /**
+     * Returns the Redis client instance.
+     *
+     * @return PredisClient
+     */
     public function connection(): PredisClient
     {
         return $this->client;
     }
 
+    /**
+     * Creates a new Predis client instance.
+     *
+     * @return PredisClient
+     */
     public function getInstance(): PredisClient
     {
         return new PredisClient([

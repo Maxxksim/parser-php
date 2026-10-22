@@ -22,6 +22,14 @@ class Queue
     private bool $shouldStop = false;
     private array $processesPids = [];
 
+    /**
+     * Registers signal handlers and determines the number of processes.
+     *
+     * @param Redis  $redisClient
+     * @param Config $config
+     * @param Parser $handler
+     * @param Logger $logger
+     */
     public function __construct(private Redis $redisClient, private Config $config, private Parser $handler, private Logger $logger)
     {
         pcntl_async_signals(true);
@@ -30,6 +38,11 @@ class Queue
         $this->countProcesses = $this->getNumberProcess();
     }
 
+    /**
+     * Signal handler for SIGTERM and SIGINT to make signal to processes that they should shut down.
+     *
+     * @return void
+     */
     public function handleStop(): void
     {
         if ($this->shouldStop) {
@@ -44,6 +57,12 @@ class Queue
         );
     }
 
+
+    /**
+     * Starts the queue and runs it until all processes are done or a stop is requested.
+     *
+     * @return void
+     */
     public function startQueue(): void
     {
         $this->moveToMainQueue();

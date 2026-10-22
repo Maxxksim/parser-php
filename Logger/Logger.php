@@ -20,6 +20,11 @@ class Logger
 
     private MLogger $logger;
 
+    /**
+     * Creates the Monolog logger instance and configures its output.
+     *
+     * @param Config $config
+     */
     public function __construct(private Config $config)
     {
         $this->logger = new MLogger('parser');
@@ -40,11 +45,24 @@ class Logger
         return self::LOG_MODE_MAPPING[$this->config->config('log.mode')] ?? self::LOG_MODE_MAPPING['file'];
     }
 
+    /**
+     * Returns the logger instance.
+     *
+     * @return MLogger Monolog logger named "parser"
+     */
     public function getMonolog(): MLogger
     {
         return $this->logger;
     }
 
+    /**
+     * Forwards calls of undefined methods to the logger as log method.
+     *
+     * @param string $level
+     * @param array $arguments
+     *
+     * @return void
+     */
     public function __call(string $level, array $arguments)
     {
         $this->logger->log($level, ...$arguments);

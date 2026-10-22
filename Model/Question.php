@@ -11,6 +11,11 @@ use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 #[Fillable('question')]
 class Question extends Model
 {
+    /**
+     * Defines the many-to-many relationship between this model and answer model.
+     *
+     * @return BelongsToMany<Answer>
+     */
     public function answers(): BelongsToMany
     {
         return $this->belongsToMany(Answer::class);

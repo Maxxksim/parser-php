@@ -19,12 +19,27 @@ class Request
 
     private static int $indexNextProxy = 0;
 
+    /**
+     * Creates the HTTP client and loads the proxy list from the configuration.
+     *
+     * @param Config $config
+     * @param Logger $logger
+     */
     public function __construct(private Config $config, private Logger $logger)
     {
         $this->client = new Client;
         $this->proxies = $this->config->config('request.proxies');
     }
-
+    /**
+     * Sends an HTTP request through a proxy.
+     *
+     * @param string $method
+     * @param string $url
+     * @return ResponseInterface
+     *
+     * @throws ClientException
+     * @throws GuzzleException
+     */
     public function makeRequest(string $method, string $url): ResponseInterface
     {
 

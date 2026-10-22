@@ -7,6 +7,7 @@ namespace App\Parser;
 use App\Logger\Logger;
 use App\Redis\Redis;
 use App\Request\Request;
+use GuzzleHttp\Exception\GuzzleException;
 use Symfony\Component\DomCrawler\Crawler;
 use Throwable;
 
@@ -19,7 +20,13 @@ class Parser
 
     private const string NOT_FOUND_QUESTION = 'Die Suche hat leider keine Ergebnisse.';
 
-
+    /**
+     * Starts method which prepares data before main parsing.
+     *
+     * @param Request $request
+     * @param Redis   $redisClient
+     * @param Logger  $logger
+     */
     public function __construct(private Request $request, private Redis $redisClient, private Logger $logger)
     {
         $this->prepareDataToMainParsing();
@@ -84,6 +91,15 @@ class Parser
         return $onlyNewLinks;
     }
 
+    /**
+     * Parses one section page and collects answers with their lengths for every question.
+     *
+     * @param string $linkToSection
+     *
+     * @return string
+     *
+     * @throws GuzzleException
+     */
     public function parse(string $linkToSection): string
     {
         $questionsWithAnswers = [];

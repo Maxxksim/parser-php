@@ -9,6 +9,13 @@ use Illuminate\Database\Capsule\Manager as Capsule;
 
 class ParsedDataController
 {
+    /**
+     * Saves questions and answers to the database and associates them with each other.
+     *
+     * @param string $data
+     *
+     * @return string
+     */
     public function save(string $data): string
     {
         $convertedData = json_decode($data, true);
