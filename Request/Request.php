@@ -38,7 +38,7 @@ class Request
                 'timeout' => 30,
             ]);
         } catch (ClientException $e) {
-            
+
             if ($e->getResponse()->getStatusCode() === 404) {
                 $response = $e->getResponse();
             } else {
@@ -57,7 +57,8 @@ class Request
     private function getProxy(): string
     {
         if (filter_var($this->config->config('request.with_proxy'), FILTER_VALIDATE_BOOLEAN) === false) {
-            return '';
+            $this->logger->warning('PROXY MESSAGE: You must configure and switch on proxy before parsing.');
+            exit();
         }
 
         if (static::$indexNextProxy + 1 > count($this->proxies)) {
