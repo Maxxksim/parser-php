@@ -113,8 +113,8 @@ class Queue
 
                         try {
                             $link = $controller->save($data[1]);
-                            $newRedisClient->lrem('queue:processing', 1, $link);
                             $newRedisClient->srem('set:processing', $link);
+                            $newRedisClient->lrem('queue:processing', 1, $link);
                         } catch (Throwable $e) {
                             $newRedisClient->lpush('queue:parsed:data', [$data[1]]);
                             $this->logger->error(
