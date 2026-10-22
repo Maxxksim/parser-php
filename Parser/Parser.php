@@ -141,7 +141,9 @@ class Parser
                 self::BASE_URL,
             );
 
-            if ($page->filter('form div#SearchresultsCounter strong')->text() === self::NOT_FOUND_QUESTION) {
+            $div = $page->filter('form div#SearchresultsCounter strong');
+
+            if ($div->count() === 0 || $div->text() === self::NOT_FOUND_QUESTION) {
                 return null;
             }
 
