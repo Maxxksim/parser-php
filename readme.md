@@ -5,8 +5,8 @@ Steps to start the project:
 Clone the project to yourself  
 Copy .env.example to .env in root directory  
 Change environment variables if you want your settings of the parser:        
-WITH_PROXY = set true if you want to make requests with proxy otherwise set false  
-If you have set WITH_PROXY in true you must set PROXY_USERNAME, PROXY_PASSWORD and put some proxies in array of proxies which is request config  
+Before start parsing you must configure your proxy:  
+Switch WITH_PROXY in true (if it's false) and fill PROXY_USERNAME, PROXY_PASSWORD then put some proxies in array of proxies which is request config    
 You can find the config in the next path: Config/request.php  
 
 LOG_MODE = set file if you want to get logs to Logs/logs.log otherwise set debug to get log to STDOUT  
