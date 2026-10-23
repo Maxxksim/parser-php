@@ -24,8 +24,8 @@ class Parser
      * Starts method which prepares data before main parsing.
      *
      * @param Request $request
-     * @param Redis   $redisClient
-     * @param Logger  $logger
+     * @param Redis $redisClient
+     * @param Logger $logger
      */
     public function __construct(private Request $request, private Redis $redisClient, private Logger $logger)
     {
@@ -123,7 +123,6 @@ class Parser
                 ))) {
                     continue;
                 }
-                $answersWithLengthsList = $result;
 
             } else {
                 $pageWithAnswers = new Crawler($response->getBody()->getContents());
@@ -134,9 +133,8 @@ class Parser
                 ))) {
                     continue;
                 }
-                $answersWithLengthsList = $result;
             }
-            $questionsWithAnswers[$linkToSection][$question] = $answersWithLengthsList;
+            $questionsWithAnswers[$linkToSection][$question] = $result;
         }
         return json_encode($questionsWithAnswers);
     }
@@ -150,7 +148,8 @@ class Parser
     {
         $answersWithLengthsList = [];
 
-        if ($checkQuestion || !($page->filter('span[data-lf="more"][hidden]')->count() > 0)) {
+        if ($checkQuestion || $page->filter('span[data-lf="more"]:not([hidden])')->count() > 0) {
+            $checkQuestion = true;
             $page = new Crawler(
                 $this->request->makeRequest('GET',
                     $this->makeUrlToSearchQuestion($question))->getBody()->getContents(),
@@ -166,7 +165,7 @@ class Parser
             while (($nextLink = $page->filter('tfoot td ul.Pagination li.Next a'))->count() > 0) {
                 $answersWithLengthsList = $this->parseAnswers(
                     $page,
-                    $checkQuestion = true,
+                    true,
                     $question,
                     $answersWithLengthsList,
                 );
