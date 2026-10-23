@@ -46,9 +46,9 @@ class Logger
     }
 
     /**
-     * Returns the logger instance.
+     * Returns the Monolog instance named "parser".
      *
-     * @return MLogger Monolog logger named "parser"
+     * @return MLogger
      */
     public function getMonolog(): MLogger
     {
