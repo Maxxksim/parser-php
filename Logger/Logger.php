@@ -46,7 +46,7 @@ class Logger
     }
 
     /**
-     * Returns the Monolog instance named "parser".
+     * Returns the Monolog\Logger instance as MLogger named "parser".
      *
      * @return MLogger
      */
