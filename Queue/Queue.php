@@ -155,7 +155,7 @@ class Queue
                         $newRedisClient->llen('queue:processing') > 0 ||
                         $newRedisClient->llen('queue:parsed:data') > 0
                     ) {
-                        if ($this->shouldStop && $newRedisClient->llen('queue:parsed:data') === 0) {
+                        if ($this->shouldStop && $newRedisClient->llen('queue:parsed:data') === 0 && $newRedisClient->llen('queue:processing') === 0) {
                             break;
                         }
 
