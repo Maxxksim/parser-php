@@ -208,13 +208,12 @@ class Queue
         $count = $this->redisClient->connection()->llen('queue:processing');
 
         for ($i = 0; $i < $count; $i++) {
-            $link = $this->redisClient->connection()->lmove(
+            $this->redisClient->connection()->lmove(
                 'queue:processing',
                 'queue',
                 'RIGHT',
                 'LEFT',
             );
-            $this->redisClient->connection()->sadd('set:processing', [$link]);
         }
         $this->logger->info('QUEUE MESSAGE (MOVING LINKS): {count} links have been moved.', ['count' => $count]);
     }
