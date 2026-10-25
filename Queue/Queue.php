@@ -25,7 +25,7 @@ class Queue
     /**
      * Registers signal handlers and determines the number of processes.
      *
-     * @param Redis  $redisClient
+     * @param Redis $redisClient
      * @param Config $config
      * @param Parser $handler
      * @param Logger $logger
@@ -208,12 +208,13 @@ class Queue
         $count = $this->redisClient->connection()->llen('queue:processing');
 
         for ($i = 0; $i < $count; $i++) {
-            $this->redisClient->connection()->lmove(
+            $link = $this->redisClient->connection()->lmove(
                 'queue:processing',
                 'queue',
                 'RIGHT',
                 'LEFT',
             );
+            $this->redisClient->connection()->sadd('set:processing', [$link]);
         }
         $this->logger->info('QUEUE MESSAGE (MOVING LINKS): {count} links have been moved.', ['count' => $count]);
     }
